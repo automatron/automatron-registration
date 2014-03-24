@@ -5,8 +5,8 @@ from email.mime.text import MIMEText
 from twisted.internet import defer
 from twisted.mail.smtp import sendmail
 from zope.interface import implements, classProvides
-from automatron.command import IAutomatronCommandHandler
-from automatron.plugin import IAutomatronPluginFactory, STOP
+from automatron.controller.command import IAutomatronCommandHandler
+from automatron.controller.plugin import IAutomatronPluginFactory, STOP
 from passlib.apps import custom_app_context as pwd_context
 import json
 
