@@ -10,6 +10,7 @@ from automatron.controller.plugin import IAutomatronPluginFactory
 from passlib.apps import custom_app_context as pwd_context
 import json
 from automatron.core.event import STOP
+from automatron.core.util import parse_user
 
 
 class AutomatronRegistration(object):
@@ -64,7 +65,7 @@ class AutomatronRegistration(object):
 
     @defer.inlineCallbacks
     def _on_command_register(self, client, user, password, email):
-        nickname = client.parse_user(user)[0]
+        nickname = parse_user(user)[0]
         pw_hash = pwd_context.encrypt(password)
 
         config = yield self.controller.config.get_plugin_section(self, client.server, None)
@@ -126,7 +127,7 @@ Kind regards,
 
     @defer.inlineCallbacks
     def _on_command_verify(self, client, user, verification_code):
-        nickname = client.parse_user(user)[0]
+        nickname = parse_user(user)[0]
 
         verify_data, _ = yield self.controller.config.get_value('user.verify', client.server, None, nickname)
         if not verify_data:
