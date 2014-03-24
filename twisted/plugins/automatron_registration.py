@@ -6,9 +6,10 @@ from twisted.internet import defer
 from twisted.mail.smtp import sendmail
 from zope.interface import implements, classProvides
 from automatron.controller.command import IAutomatronCommandHandler
-from automatron.controller.plugin import IAutomatronPluginFactory, STOP
+from automatron.controller.plugin import IAutomatronPluginFactory
 from passlib.apps import custom_app_context as pwd_context
 import json
+from automatron.core.event import STOP
 
 
 class AutomatronRegistration(object):
