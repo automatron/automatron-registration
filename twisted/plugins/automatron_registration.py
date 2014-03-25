@@ -6,7 +6,6 @@ from twisted.internet import defer
 from twisted.mail.smtp import sendmail
 from zope.interface import implements, classProvides
 from automatron.backend.command import IAutomatronCommandHandler
-from automatron.controller.controller import IAutomatronClientActions
 from automatron.backend.plugin import IAutomatronPluginFactory
 from passlib.apps import custom_app_context as pwd_context
 import json
@@ -31,21 +30,13 @@ class AutomatronRegistration(object):
     def __init__(self, controller):
         self.controller = controller
 
-    def _msg(self, server, user, message):
-        self.controller.plugins.emit(
-            IAutomatronClientActions['message'],
-            server,
-            user,
-            message
-        )
-
     def on_command(self, server, user, command, args):
         config = self.command_map.get(command)
         if config is None:
             return
 
         if not config[1] <= len(args) <= config[2]:
-            self._msg(server['server'], user, 'Invalid syntax. Use: %s %s' % (command, config[0]))
+            self.controller.message(server['server'], user, 'Invalid syntax. Use: %s %s' % (command, config[0]))
         else:
             getattr(self, '_on_command_%s' % command)(server, user, *args)
         return STOP
@@ -64,13 +55,14 @@ class AutomatronRegistration(object):
                 role = role_rel = None
 
             if role_rel is None:
-                self._msg(server['server'], user, identity)
+                self.controller.message(server['server'], user, identity)
             elif role_rel in (2, 3):
-                self._msg(server['server'], user, '%s and your role in %s is %s' % (identity, channel, role))
+                self.controller.message(server['server'], user, '%s and your role in %s is %s' % (identity,
+                                                                                                  channel, role))
             else:
-                self._msg(server['server'], user, '%s and your role is %s' % (identity, role))
+                self.controller.message(server['server'], user, '%s and your role is %s' % (identity, role))
         else:
-            self._msg(server['server'], user, 'I don\'t know you...')
+            self.controller.message(server['server'], user, 'I don\'t know you...')
 
     @defer.inlineCallbacks
     def _on_command_register(self, server, user, password, email):
@@ -81,7 +73,7 @@ class AutomatronRegistration(object):
         mail_config = yield self.controller.config.get_section('mail', server['server'], None)
 
         if not config.get('registration') == 'true' or not mail_config.get('from'):
-            self._msg(server['server'], user, 'User registration is disabled.')
+            self.controller.message(server['server'], user, 'User registration is disabled.')
             return
 
         _, user_email_rel = yield self.controller.config.get_value(
@@ -97,7 +89,7 @@ class AutomatronRegistration(object):
             nickname
         )
         if user_email_rel is not None or verify_rel is not None:
-            self._msg(server['server'], user, 'User %s already exists.' % nickname)
+            self.controller.message(server['server'], user, 'User %s already exists.' % nickname)
             return
 
         verification_code = ''
@@ -132,7 +124,7 @@ Kind regards,
         msg['To'] = email
         sendmail(mail_config.get('mailserver', 'localhost'), mail_config['from'], [email], msg.as_string())
 
-        self._msg(server['server'], user, 'An email with verification instructions has been sent.')
+        self.controller.message(server['server'], user, 'An email with verification instructions has been sent.')
 
     @defer.inlineCallbacks
     def _on_command_verify(self, server, user, verification_code):
@@ -140,18 +132,18 @@ Kind regards,
 
         verify_data, _ = yield self.controller.config.get_value('user.verify', server['server'], None, nickname)
         if not verify_data:
-            self._msg(server['server'], user, 'Please register first.')
+            self.controller.message(server['server'], user, 'Please register first.')
             return
 
         try:
             verify_data = json.loads(verify_data)
         except Exception as e:
             log.err(e, 'Could not decode verification data')
-            self._msg(server['server'], user, 'Something went terribly wrong.')
+            self.controller.message(server['server'], user, 'Something went terribly wrong.')
             return
 
         if verify_data['code'] != verification_code:
-            self._msg(server['server'], user, 'Incorrect verification code. Please double check.')
+            self.controller.message(server['server'], user, 'Incorrect verification code. Please double check.')
             return
 
         self.controller.config.update_value(
@@ -179,4 +171,4 @@ Kind regards,
                 default_role
             )
 
-        self._msg(server['server'], user, 'Registration completed.')
+        self.controller.message(server['server'], user, 'Registration completed.')
